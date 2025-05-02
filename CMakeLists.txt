@@ -22,5 +22,8 @@ add_library(cerberus SHARED
     src/login.cpp
     src/packets.cpp
     src/webhook.cpp
+    src/hash.cpp
+    sha256/src/SHA256.cpp
 )
 target_link_libraries(cerberus mods symbols reborn-patch)
+target_include_directories(cerberus PRIVATE sha256/include)

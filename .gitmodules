@@ -1,0 +1,3 @@
+[submodule "sha256"]
+	path = sha256
+	url = https://github.com/System-Glitch/SHA256.git
