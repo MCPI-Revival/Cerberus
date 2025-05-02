@@ -13,6 +13,6 @@ const std::string discord_admin = "TheBrokenRail";
 static std::unordered_set admins = {
     discord_admin
 };
-bool is_admin(const ServerPlayer *player) {
+bool is_admin(const Player *player) {
     return admins.contains(player->username);
 }

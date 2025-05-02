@@ -1,71 +1,131 @@
 #include <libreborn/util/string.h>
-#include <libreborn/log.h>
 
-#include <mods/api/api.h>
 #include <mods/misc/misc.h>
+#include <mods/server/server.h>
 
 #include "mod.h"
 
 // Commands
 #define def(name) static constexpr const char *name##_command = "/" #name " "
 def(login);
+def(ban);
+def(register);
+def(report);
 #undef def
 
-// Login Player
-static void login(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, const std::string &username) {
-    // Mark
-    mark_logged_in(guid);
-
-    // Update Username
-    bool found = false;
-    for (Player *player : self->pending_players) {
-        ServerPlayer *server_player = (ServerPlayer *) player;
-        if (server_player->guid.equals(guid)) {
-            server_player->username = username;
-            found = true;
-        }
+// Parsing
+static bool parse_two_args(const std::string &command, std::string &a, std::string &b) {
+    const std::string::size_type divider = command.find(' ');
+    if (divider == std::string::npos) {
+        return false;
     }
-    if (!found) {
-        IMPOSSIBLE();
-    }
-
-    // Add Player To Level
-    self->onReady_ClientGeneration(guid);
-
-    // Update Position
-    Player *player = self->getPlayer(guid);
-    if (player) {
-        api_update_entity_position((Entity *) player, &guid);
-    }
+    a = command.substr(0, divider);
+    b = command.substr(divider + 1);
+    return !a.empty() && !b.empty();
 }
 
 // Handle
 bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, const bool logged_in, std::string command) {
+    static constexpr const char *invalid_arguments = "Invalid Arguments";
     command = from_cp437(command);
     if (!logged_in) {
         // Logged-Out
         if (command.starts_with(login_command)) {
             // Login
             command = command.substr(strlen(login_command));
-            const std::string::size_type divider = command.find(' ');
-            std::string username = command.substr(0, divider);
-            const std::string password = command.substr(divider + 1);
+            std::string username;
+            std::string password;
+            const bool valid_args = parse_two_args(command, username, password);
+
             // Attempt
-            username = to_cp437(username);
-            misc_sanitize_username(username);
-            const std::string username_utf = from_cp437(username);
-            if (attempt_login(username_utf, password)) {
-                // Success
-                tell(self, guid, "Welcome, " + username_utf + '!');
-                login(self, guid, username);
+            std::string message;
+            if (!valid_args) {
+                message = invalid_arguments;
             } else {
-                // Failure
-                tell(self, guid, "Login Failed!");
+                // Sanitize Username
+                username = to_cp437(username);
+                misc_sanitize_username(username);
+                const std::string username_utf = from_cp437(username);
+                // Try To Log In
+                if (attempt_login(username_utf, password)) {
+                    // Success
+                    message = "Welcome, " + username_utf + '!';
+                    login(self, guid, username);
+                } else {
+                    // Failure
+                    message = "Invalid Username/Password";
+                }
             }
+            // Return
+            tell(self, guid, message);
         }
         return true;
     } else {
         // Logged-In
+        static constexpr const char *invalid_player = "Invalid Player";
+        const Player *player = self->getPlayer(guid);
+        const Level *level = self->level;
+        if (player && level) {
+            const bool admin = is_admin(player);
+            std::string message;
+            // Check Possible Commands
+            if (admin && command.starts_with(ban_command)) {
+                // Ban
+                const std::string username = command.substr(strlen(ban_command));
+
+                // Remove Account
+                bool valid = delete_account(username);
+                // Kick Players
+                for (Player *other : self->level->players) {
+                    if (misc_get_player_username_utf(other) == username) {
+                        server_kick((ServerPlayer *) other);
+                        valid = true;
+                    }
+                }
+                // Return
+                message = valid ? "Banned" : invalid_player;
+                message += ": " + username;
+            } else if (admin && command.starts_with(register_command)) {
+                // Create Account
+                command = command.substr(strlen(register_command));
+                std::string username;
+                std::string password;
+                const bool valid_args = parse_two_args(command, username, password);
+
+                // Run
+                if (!valid_args) {
+                    message = invalid_arguments;
+                } else if (create_account(username, password)) {
+                    message = "Created: " + username;
+                } else {
+                    message = "Account Already Exists";
+                }
+            } else if (command.starts_with(report_command)) {
+                // Report Player
+                command = command.substr(strlen(report_command));
+                std::string target;
+                std::string reason;
+                const bool valid_args = parse_two_args(command, target, reason);
+
+                // Run
+                if (!valid_args) {
+                    message = invalid_arguments;
+                } else {
+                    const bool valid = has_account(target);
+                    if (valid) {
+                        message = "Reported: " + target;
+                        send_to_discord("**" + misc_get_player_username_utf(player) + " has reported " + target + " for:** " + reason, true);
+                    } else {
+                        message = invalid_player;
+                    }
+                }
+            }
+            // Return
+            if (!message.empty()) {
+                tell(self, guid, message);
+                return true;
+            }
+        }
         return false;
     }
 }

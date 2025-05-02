@@ -45,19 +45,20 @@ void Accounts::save() const {
 
 // Create Account
 bool create_account(const std::string &name, const std::string &password) {
-    if (get_accounts().data.contains(name)) {
+    if (has_account(name)) {
         // Already Exists
         return false;
     }
     // Create
     get_accounts().data[name] = hash_password(password);
     get_accounts().save();
+    send_to_discord("**New Account Created:** " + name, false);
     return true;
 }
 
 // Login
 bool attempt_login(const std::string &name, const std::string &password) {
-    if (!get_accounts().data.contains(name)) {
+    if (!has_account(name)) {
         // Does Not Exist
         return false;
     }
@@ -67,14 +68,20 @@ bool attempt_login(const std::string &name, const std::string &password) {
 
 // Delete
 bool delete_account(const std::string &name) {
-    if (!get_accounts().data.contains(name)) {
+    if (!has_account(name)) {
         // Does Not Exist
         return false;
     }
     // Delete
     get_accounts().data.erase(name);
     get_accounts().save();
+    send_to_discord("**Banned:** " + name, false);
     return true;
+}
+
+// Check
+bool has_account(const std::string &name) {
+    return get_accounts().data.contains(name);
 }
 
 // Init
