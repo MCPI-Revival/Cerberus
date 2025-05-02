@@ -1,7 +1,6 @@
 #include <fstream>
 #include <unordered_map>
 
-#include <libreborn/log.h>
 #include <libreborn/util/util.h>
 
 #include "mod.h"
@@ -24,9 +23,11 @@ static std::string get_path() {
 void Accounts::load() {
     data.clear();
     std::ifstream file(get_path(), std::ios::binary);
-    while (file && file.peek() != EOF) {
+    while (true) {
         std::string username;
-        std::getline(file, username);
+        if (!std::getline(file, username)) {
+            break;
+        }
         std::string password;
         std::getline(file, password);
         data[username] = password;
