@@ -5,14 +5,6 @@
 
 #include "mod.h"
 
-// Commands
-#define def(name) static constexpr const char *name##_command = "/" #name " "
-def(login);
-def(ban);
-def(register);
-def(report);
-#undef def
-
 // Parsing
 static bool parse_two_args(const std::string &command, std::string &a, std::string &b) {
     const std::string::size_type divider = command.find(' ');
@@ -24,108 +16,200 @@ static bool parse_two_args(const std::string &command, std::string &a, std::stri
     return !a.empty() && !b.empty();
 }
 
+// Parse
+struct Command {
+    std::string name;
+    const bool requires_admin = false;
+    const std::vector<std::string> args = {};
+    const std::function<std::vector<std::string>(const std::vector<std::string> &)> callback;
+};
+static std::vector<std::string> run_command(const std::string &input, const Command &command) {
+    // Parse
+    std::vector<std::string> args;
+    const int arg_count = int(command.args.size());
+    static constexpr const char *invalid_arguments = "Invalid Arguments";
+    if (arg_count == 2) {
+        std::string a;
+        std::string b;
+        if (!parse_two_args(input, a, b)) {
+            return {invalid_arguments};
+        }
+        args = {a, b};
+    } else if (arg_count == 1) {
+        if (input.empty()) {
+            return {invalid_arguments};
+        }
+        args = {input};
+    }
+    // Run
+    return command.callback(args);
+}
+static bool run(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, const std::string &input, std::vector<Command> &commands) {
+    // Check If Admin
+    bool admin = false;
+    const Player *player = self->getPlayer(guid);
+    if (player) {
+        admin = is_admin(player);
+    }
+
+    // Generate Help
+    commands.push_back({
+        .name = "help",
+        .callback = [&commands](__attribute__((unused)) const std::vector<std::string> &args) {
+            std::vector<std::string> ret = {"All Commands:"};
+            for (const Command &command : commands) {
+                std::string line = "- " + command.name;
+                for (const std::string &arg : command.args) {
+                    line += " <" + arg + '>';
+                }
+                ret.push_back(line);
+            }
+            return ret;
+        }
+    });
+
+    // Add Slash To Commands
+    for (Command &command : commands) {
+        command.name = '/' + command.name;
+    }
+
+    // Parse
+    for (const Command &command : commands) {
+        // Check Command
+        if (command.requires_admin && !admin) {
+            continue;
+        }
+        const std::string prefix = command.name + ' ';
+        if (input.starts_with(prefix) || input == command.name) {
+            // Extract Arguments
+            std::string args_str;
+            if (input.size() >= prefix.size()) {
+                args_str = input.substr(prefix.size());
+            }
+            // Run
+            const std::vector<std::string> output = run_command(args_str, command);
+            for (const std::string &line : output) {
+                tell(self, guid, line);
+            }
+            return true;
+        }
+    }
+
+    // No Command Was Run
+    return false;
+}
+
 // Handle
 bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, const bool logged_in, std::string command) {
-    static constexpr const char *invalid_arguments = "Invalid Arguments";
+    // Common Arguments
+    static constexpr const char *username_arg = "username";
+    static constexpr const char *password_arg = "password";
+    // Convert To Unicode
     command = from_cp437(command);
+    // Run
     if (!logged_in) {
         // Logged-Out
-        if (command.starts_with(login_command)) {
-            // Login
-            command = command.substr(strlen(login_command));
-            std::string username;
-            std::string password;
-            const bool valid_args = parse_two_args(command, username, password);
-
-            // Attempt
-            std::string message;
-            if (!valid_args) {
-                message = invalid_arguments;
-            } else {
-                // Sanitize Username
-                username = to_cp437(username);
-                misc_sanitize_username(username);
-                const std::string username_utf = from_cp437(username);
-                // Try To Log In
-                if (attempt_login(username_utf, password)) {
-                    // Success
-                    message = "Welcome, " + username_utf + '!';
-                    login(self, guid, username);
-                } else {
-                    // Failure
-                    message = "Invalid Username/Password";
+        std::vector<Command> commands = {
+            {
+                .name = "login",
+                .args = {username_arg, password_arg},
+                .callback = [&self, &guid](const std::vector<std::string> &args) {
+                    std::string message;
+                    // Arguments
+                    std::string username_cp437 = to_cp437(args[0]);
+                    misc_sanitize_username(username_cp437);
+                    const std::string username_utf = from_cp437(username_cp437);
+                    const std::string &password = args[1];
+                    // Try To Log In
+                    if (attempt_login(username_utf, password)) {
+                        // Success
+                        message = "Welcome, " + username_utf + '!';
+                        login(self, guid, username_cp437);
+                    } else {
+                        // Failure
+                        message = "Invalid Username/Password";
+                    }
+                    // Return
+                    return std::vector{message};
                 }
             }
-            // Return
-            tell(self, guid, message);
-        }
+        };
+        run(self, guid, command, commands);
         return true;
     } else {
         // Logged-In
         static constexpr const char *invalid_player = "Invalid Player";
-        const Player *player = self->getPlayer(guid);
-        const Level *level = self->level;
-        if (player && level) {
-            const bool admin = is_admin(player);
-            std::string message;
-            // Check Possible Commands
-            if (admin && command.starts_with(ban_command)) {
-                // Ban
-                const std::string username = command.substr(strlen(ban_command));
-
-                // Remove Account
-                bool valid = delete_account(username);
-                // Kick Players
-                for (Player *other : self->level->players) {
-                    if (misc_get_player_username_utf(other) == username) {
-                        server_kick((ServerPlayer *) other);
-                        valid = true;
+        std::vector<Command> commands = {
+            {
+                .name = "ban",
+                .requires_admin = true,
+                .args = {username_arg},
+                .callback = [&self](const std::vector<std::string> &args) {
+                    // Arguments
+                    const std::string &username = args[0];
+                    // Remove Account
+                    bool valid = delete_account(username);
+                    // Kick Players
+                    const Level *level = self->level;
+                    if (level) {
+                        for (Player *other : level->players) {
+                            if (misc_get_player_username_utf(other) == username) {
+                                server_kick((ServerPlayer *) other);
+                                valid = true;
+                            }
+                        }
                     }
+                    // Return
+                    std::string message = valid ? "Banned" : invalid_player;
+                    message += ": " + username;
+                    return std::vector{message};
                 }
-                // Return
-                message = valid ? "Banned" : invalid_player;
-                message += ": " + username;
-            } else if (admin && command.starts_with(register_command)) {
-                // Create Account
-                command = command.substr(strlen(register_command));
-                std::string username;
-                std::string password;
-                const bool valid_args = parse_two_args(command, username, password);
-
-                // Run
-                if (!valid_args) {
-                    message = invalid_arguments;
-                } else if (create_account(username, password)) {
-                    message = "Created: " + username;
-                } else {
-                    message = "Account Already Exists";
+            },
+            {
+                .name = "register",
+                .requires_admin = true,
+                .args = {username_arg, password_arg},
+                .callback = [](const std::vector<std::string> &args) {
+                    // Arguments
+                    const std::string &username = args[0];
+                    const std::string &password = args[1];
+                    // Run
+                    std::string message;
+                    if (create_account(username, password)) {
+                        message = "Created: " + username;
+                    } else {
+                        message = "Account Already Exists";
+                    }
+                    return std::vector{message};
                 }
-            } else if (command.starts_with(report_command)) {
-                // Report Player
-                command = command.substr(strlen(report_command));
-                std::string target;
-                std::string reason;
-                const bool valid_args = parse_two_args(command, target, reason);
-
-                // Run
-                if (!valid_args) {
-                    message = invalid_arguments;
-                } else {
+            },
+            {
+                .name = "report",
+                .requires_admin = false,
+                .args = {username_arg, "reason"},
+                .callback = [&self, &guid](const std::vector<std::string> &args) {
+                    // Arguments
+                    const std::string &target = args[0];
+                    const std::string &reason = args[1];
+                    // Get Reporter
+                    std::string reporter;
+                    const Player *player = self->getPlayer(guid);
+                    if (player) {
+                        reporter = misc_get_player_username_utf(player);
+                    }
+                    // Run
+                    std::string message;
                     const bool valid = has_account(target);
                     if (valid) {
                         message = "Reported: " + target;
-                        send_to_discord("**" + misc_get_player_username_utf(player) + " has reported " + target + " for:** " + reason, true);
+                        send_to_discord("**" + reporter + " has reported " + target + " for:** " + reason, true);
                     } else {
                         message = invalid_player;
                     }
+                    return std::vector{message};
                 }
             }
-            // Return
-            if (!message.empty()) {
-                tell(self, guid, message);
-                return true;
-            }
-        }
-        return false;
+        };
+        return run(self, guid, command, commands);
     }
 }

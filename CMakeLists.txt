@@ -12,6 +12,9 @@ project(cerberus)
 # Include SDK
 include("$ENV{HOME}/.minecraft-pi/sdk/lib/minecraft-pi-reborn/sdk/sdk.cmake")
 
+# Warning
+add_compile_options(-Wall -Wextra -Werror -Wpointer-arith -Wshadow -Wnull-dereference)
+
 # Build
 set(CMAKE_CXX_VISIBILITY_PRESET internal)
 add_library(cerberus SHARED
