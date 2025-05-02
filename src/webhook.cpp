@@ -74,7 +74,6 @@ void send_to_discord(const std::string &message, const bool can_ping) {
         msg = "<@" + std::to_string(discord_ping_id) + "> " + msg;
     }
     const std::string json = make_json(msg, can_ping);
-    //INFO("JSON: %s", json.c_str());
     const std::string &url = get_url();
     // Send
     if (fork() == 0) {
