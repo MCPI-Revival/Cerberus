@@ -44,6 +44,11 @@ void Accounts::save() const {
     file.close();
 }
 
+// Discord Notification
+static void notify(const std::string &type, const std::string &name) {
+    send_to_discord("**" + type + ":** " + name, false);
+}
+
 // Create Account
 bool create_account(const std::string &name, const std::string &password) {
     if (has_account(name)) {
@@ -53,7 +58,7 @@ bool create_account(const std::string &name, const std::string &password) {
     // Create
     get_accounts().data[name] = hash_password(password);
     get_accounts().save();
-    send_to_discord("**New Account Created:** " + name, false);
+    notify("New Account Created", name);
     return true;
 }
 
@@ -76,13 +81,27 @@ bool delete_account(const std::string &name) {
     // Delete
     get_accounts().data.erase(name);
     get_accounts().save();
-    send_to_discord("**Banned:** " + name, false);
+    notify("Banned", name);
     return true;
 }
 
 // Check
 bool has_account(const std::string &name) {
     return get_accounts().data.contains(name);
+}
+
+// Change Password
+bool change_password(const std::string &name, const std::string &old_password, const std::string &new_password) {
+    // Check Old Password
+    if (!attempt_login(name, old_password)) {
+        // Incorrect Password
+        return false;
+    }
+    // Change
+    get_accounts().data[name] = hash_password(new_password);
+    get_accounts().save();
+    notify("Password Changed", name);
+    return true;
 }
 
 // Init

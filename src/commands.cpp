@@ -1,4 +1,5 @@
 #include <libreborn/util/string.h>
+#include <libreborn/log.h>
 
 #include <mods/misc/misc.h>
 #include <mods/server/server.h>
@@ -19,16 +20,18 @@ static bool parse_two_args(const std::string &command, std::string &a, std::stri
 // Parse
 struct Command {
     std::string name;
-    const bool requires_admin = false;
-    const std::vector<std::string> args = {};
-    const std::function<std::vector<std::string>(const std::vector<std::string> &)> callback;
+    bool requires_admin = false;
+    std::vector<std::string> args = {};
+    std::function<std::vector<std::string>(const std::vector<std::string> &)> callback;
 };
+// Execute Command
 static std::vector<std::string> run_command(const std::string &input, const Command &command) {
     // Parse
     std::vector<std::string> args;
     const int arg_count = int(command.args.size());
     static constexpr const char *invalid_arguments = "Invalid Arguments";
     if (arg_count == 2) {
+        // Two Arguments
         std::string a;
         std::string b;
         if (!parse_two_args(input, a, b)) {
@@ -36,22 +39,22 @@ static std::vector<std::string> run_command(const std::string &input, const Comm
         }
         args = {a, b};
     } else if (arg_count == 1) {
+        // Only One Argument
         if (input.empty()) {
             return {invalid_arguments};
         }
         args = {input};
+    } else if (arg_count == 0) {
+        // No Arguments
+    } else {
+        // Not Supported
+        IMPOSSIBLE();
     }
     // Run
     return command.callback(args);
 }
+// Determine Which Command To Run, And Run It
 static bool run(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, const std::string &input, std::vector<Command> &commands) {
-    // Check If Admin
-    bool admin = false;
-    const Player *player = self->getPlayer(guid);
-    if (player) {
-        admin = is_admin(player);
-    }
-
     // Generate Help
     commands.push_back({
         .name = "help",
@@ -73,12 +76,21 @@ static bool run(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, c
         command.name = '/' + command.name;
     }
 
+    // Remove Prohibited Commands
+    bool admin = false;
+    const Player *player = self->getPlayer(guid);
+    if (player) {
+        admin = is_admin(player);
+    }
+    if (!admin) {
+        std::erase_if(commands, [](const Command &command) {
+            return command.requires_admin;
+        });
+    }
+
     // Parse
     for (const Command &command : commands) {
         // Check Command
-        if (command.requires_admin && !admin) {
-            continue;
-        }
         const std::string prefix = command.name + ' ';
         if (input.starts_with(prefix) || input == command.name) {
             // Extract Arguments
@@ -110,6 +122,7 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
     if (!logged_in) {
         // Logged-Out
         std::vector<Command> commands = {
+            // Login
             {
                 .name = "login",
                 .args = {username_arg, password_arg},
@@ -140,6 +153,7 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
         // Logged-In
         static constexpr const char *invalid_player = "Invalid Player";
         std::vector<Command> commands = {
+            // Delete Account
             {
                 .name = "ban",
                 .requires_admin = true,
@@ -165,6 +179,7 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
                     return std::vector{message};
                 }
             },
+            // Create Account
             {
                 .name = "register",
                 .requires_admin = true,
@@ -183,9 +198,9 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
                     return std::vector{message};
                 }
             },
+            // Report Player
             {
                 .name = "report",
-                .requires_admin = false,
                 .args = {username_arg, "reason"},
                 .callback = [&self, &guid](const std::vector<std::string> &args) {
                     // Arguments
@@ -205,6 +220,28 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
                         send_to_discord("**" + reporter + " has reported " + target + " for:** " + reason, true);
                     } else {
                         message = invalid_player;
+                    }
+                    return std::vector{message};
+                }
+            },
+            // Change Password
+            {
+                .name = "password",
+                .args = {"old", "new"},
+                .callback = [&self, &guid](const std::vector<std::string> &args) {
+                    // Arguments
+                    const std::string &old_password = args[0];
+                    const std::string &new_password = args[1];
+                    // Get Username
+                    std::string username;
+                    const Player *player = self->getPlayer(guid);
+                    if (player) {
+                        username = misc_get_player_username_utf(player);
+                    }
+                    // Run
+                    std::string message = "Invalid Password";
+                    if (change_password(username, old_password, new_password)) {
+                        message = "Password Changed";
                     }
                     return std::vector{message};
                 }

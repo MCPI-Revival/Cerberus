@@ -79,7 +79,7 @@ static void ServerSideNetworkHandler_onReady_ClientGeneration_injection(ServerSi
     }
     // Send Welcome Message
     tell(self, guid, "Welcome to the official MCPI-Revival server!");
-    tell(self, guid, "To login, chat \"/login <username> <password>\".");
+    tell(self, guid, "To join, chat \"/login <username> <password>\".");
     tell(self, guid, "If you do not have an account, DM @" + discord_admin + " on Discord.");
     const int count = self->level ? int(self->level->players.size()) : 0;
     std::string message = "There ";

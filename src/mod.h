@@ -25,6 +25,7 @@ bool create_account(const std::string &name, const std::string &password);
 bool attempt_login(const std::string &name, const std::string &password);
 bool delete_account(const std::string &name);
 bool has_account(const std::string &name);
+bool change_password(const std::string &name, const std::string &old_password, const std::string &new_password);
 
 // Packets
 void tell(const ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, const std::string &message /* In UTF-8 */);
