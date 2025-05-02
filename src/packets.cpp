@@ -81,6 +81,15 @@ static void ServerSideNetworkHandler_onReady_ClientGeneration_injection(ServerSi
     tell(self, guid, "Welcome to the official MCPI-Revival server!");
     tell(self, guid, "To login, chat \"/login <username> <password>\".");
     tell(self, guid, "If you do not have an account, DM @" + discord_admin + " on Discord.");
+    const int count = self->level ? int(self->level->players.size()) : 0;
+    std::string message = "There ";
+    if (count == 1) {
+        message += "is " + std::to_string(count) + " player";
+    } else {
+        message += "are " + std::to_string(count) + " players";
+    }
+    message += " online.";
+    tell(self, guid, message);
 }
 
 // Handle Chat Commands
