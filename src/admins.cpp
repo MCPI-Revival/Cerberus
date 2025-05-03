@@ -1,5 +1,7 @@
 #include <unordered_set>
 
+#include <mods/misc/misc.h>
+
 #include "mod.h"
 
 // Who To Ping In Logs
@@ -14,5 +16,5 @@ static std::unordered_set admins = {
     discord_admin
 };
 bool is_admin(const Player *player) {
-    return admins.contains(player->username);
+    return admins.contains(misc_get_player_username_utf(player));
 }
