@@ -127,14 +127,29 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
                 .name = "login",
                 .args = {username_arg, password_arg},
                 .callback = [&self, &guid](const std::vector<std::string> &args) {
-                    std::string message;
                     // Arguments
                     std::string username_cp437 = to_cp437(args[0]);
                     misc_sanitize_username(username_cp437);
                     const std::string username_utf = from_cp437(username_cp437);
                     const std::string &password = args[1];
+
+                    // Check If User Already Logged In
+                    bool already_logged_in = false;
+                    const Level *level = self->level;
+                    if (level) {
+                        for (const Player *other : level->players) {
+                            if (other->username == username_cp437) {
+                                already_logged_in = true;
+                                break;
+                            }
+                        }
+                    }
                     // Try To Log In
-                    if (attempt_login(username_utf, password)) {
+                    std::string message;
+                    if (already_logged_in) {
+                        // Already logged In
+                        message = "Already Logged In";
+                    } else if (attempt_login(username_utf, password)) {
                         // Success
                         message = "Welcome, " + username_utf + '!';
                         login(self, guid, username_cp437);
@@ -142,6 +157,7 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
                         // Failure
                         message = "Invalid Username/Password";
                     }
+
                     // Return
                     return std::vector{message};
                 }
@@ -161,6 +177,7 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
                 .callback = [&self](const std::vector<std::string> &args) {
                     // Arguments
                     const std::string &username = args[0];
+
                     // Remove Account
                     bool valid = delete_account(username);
                     // Kick Players
@@ -173,6 +190,7 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
                             }
                         }
                     }
+
                     // Return
                     std::string message = valid ? "Banned" : invalid_player;
                     message += ": " + username;
@@ -188,6 +206,7 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
                     // Arguments
                     const std::string &username = args[0];
                     const std::string &password = args[1];
+
                     // Run
                     std::string message;
                     if (create_account(username, password)) {
@@ -206,12 +225,14 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
                     // Arguments
                     const std::string &target = args[0];
                     const std::string &reason = args[1];
+
                     // Get Reporter
                     std::string reporter;
                     const Player *player = self->getPlayer(guid);
                     if (player) {
                         reporter = misc_get_player_username_utf(player);
                     }
+
                     // Run
                     std::string message;
                     const bool valid = has_account(target);
@@ -232,12 +253,14 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
                     // Arguments
                     const std::string &old_password = args[0];
                     const std::string &new_password = args[1];
+
                     // Get Username
                     std::string username;
                     const Player *player = self->getPlayer(guid);
                     if (player) {
                         username = misc_get_player_username_utf(player);
                     }
+
                     // Run
                     std::string message = "Invalid Password";
                     if (change_password(username, old_password, new_password)) {
