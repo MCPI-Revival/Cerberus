@@ -1,14 +1,16 @@
 #include <mods/api/api.h>
 #include <libreborn/log.h>
+#include <libreborn/util/string.h>
 
 #include "mod.h"
 
 // Login Player
-void login(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, const std::string &username) {
+void login(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, std::string username) {
     // Mark
     mark_logged_in(guid);
 
     // Update Username
+    username = to_cp437(username);
     bool found = false;
     for (Player *player : self->pending_players) {
         ServerPlayer *server_player = (ServerPlayer *) player;

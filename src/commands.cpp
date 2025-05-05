@@ -111,11 +111,29 @@ static bool run(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, c
     return false;
 }
 
+// Check Username
+static bool is_username_valid(std::string username) {
+    // Block Empty
+    if (username.empty()) {
+        return false;
+    }
+    // Convert To CP-437
+    username = to_cp437(username);
+    // Sanitize
+    std::string sanitized_username = username;
+    misc_sanitize_username(sanitized_username);
+    // Check
+    return username == sanitized_username;
+}
+
 // Handle
 bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, const bool logged_in, std::string command) {
     // Common Arguments
     static constexpr const char *username_arg = "username";
     static constexpr const char *password_arg = "password";
+    // Common Errors
+    static constexpr const char *invalid_player = "Invalid Player";
+    static constexpr const char *invalid_username = "Invalid Username";
     // Convert To Unicode
     command = from_cp437(command);
     // Run
@@ -128,9 +146,7 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
                 .args = {username_arg, password_arg},
                 .callback = [&self, &guid](const std::vector<std::string> &args) {
                     // Arguments
-                    std::string username_cp437 = to_cp437(args[0]);
-                    misc_sanitize_username(username_cp437);
-                    const std::string username_utf = from_cp437(username_cp437);
+                    const std::string &username = args[0];
                     const std::string &password = args[1];
 
                     // Check If User Already Logged In
@@ -138,24 +154,27 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
                     const Level *level = self->level;
                     if (level) {
                         for (const Player *other : level->players) {
-                            if (other->username == username_cp437) {
+                            if (misc_get_player_username_utf(other) == username) {
                                 already_logged_in = true;
                                 break;
                             }
                         }
                     }
+
                     // Try To Log In
                     std::string message;
-                    if (already_logged_in) {
-                        // Already logged In
-                        message = "Already Logged In";
-                    } else if (attempt_login(username_utf, password)) {
+                    if (is_username_valid(username) && attempt_login(username, password)) {
                         // Success
-                        message = "Welcome, " + username_utf + '!';
-                        login(self, guid, username_cp437);
+                        if (!already_logged_in) {
+                            message = "Welcome, " + username + '!';
+                            login(self, guid, username);
+                        } else {
+                            // Already logged In
+                            message = "User Already Logged In";
+                        }
                     } else {
                         // Failure
-                        message = "Invalid Username/Password";
+                        message = std::string(invalid_username) + "/Password";
                     }
 
                     // Return
@@ -167,7 +186,6 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
         return true;
     } else {
         // Logged-In
-        static constexpr const char *invalid_player = "Invalid Player";
         std::vector<Command> commands = {
             // Delete Account
             {
@@ -209,7 +227,9 @@ bool handle_command(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &gui
 
                     // Run
                     std::string message;
-                    if (create_account(username, password)) {
+                    if (!is_username_valid(username)) {
+                        message = invalid_username;
+                    } else if (create_account(username, password)) {
                         message = "Created: " + username;
                     } else {
                         message = "Account Already Exists";
