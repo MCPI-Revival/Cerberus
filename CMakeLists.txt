@@ -20,7 +20,10 @@ set(CMAKE_CXX_VISIBILITY_PRESET internal)
 add_library(cerberus SHARED
     src/accounts.cpp
     src/admins.cpp
-    src/commands.cpp
+    src/commands/parsing.cpp
+    src/commands/common.cpp
+    src/commands/logged-in.cpp
+    src/commands/logged-out.cpp
     src/init.cpp
     src/login.cpp
     src/packets.cpp
