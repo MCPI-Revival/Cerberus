@@ -10,7 +10,7 @@ void add_common_commands(std::vector<Command> &commands, ServerSideNetworkHandle
     // Generate Help
     commands.push_back({
         .name = "help",
-        .callback = [&commands](__attribute__((unused)) const std::vector<std::string> &args) {
+        .callback = [&commands](MCPI_UNUSED const std::vector<std::string> &args) {
             std::vector<std::string> ret = {"All Commands:"};
             for (const Command &command : commands) {
                 std::string line = bullet + command.name;
@@ -26,7 +26,7 @@ void add_common_commands(std::vector<Command> &commands, ServerSideNetworkHandle
     // List Players
     commands.push_back({
         .name = "list",
-        .callback = [self](__attribute__((unused)) const std::vector<std::string> &args) {
+        .callback = [self](MCPI_UNUSED const std::vector<std::string> &args) {
             std::vector<std::string> ret = {"All Players:"};
             const Level *level = self->level;
             if (level) {
