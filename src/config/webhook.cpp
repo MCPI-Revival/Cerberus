@@ -80,7 +80,7 @@ static std::string make_json(const std::string &message, const bool can_ping) {
     std::string out = "{\"allowed_mentions\": {";
     out += '"' + config.ping_type + "s\": [";
     if (can_ping) {
-        out += config.ping_id;
+        out += '"' + std::to_string(config.ping_id) + '"';
     }
     out += ']';
     out += "}, ";
