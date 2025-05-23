@@ -2,7 +2,7 @@
 #include <mods/server/server.h>
 
 #include "commands.h"
-#include "../mod.h"
+#include "../config/config.h"
 
 // Load Commands
 void add_logged_in_commands(std::vector<Command> &commands, ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid) {

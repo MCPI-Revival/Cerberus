@@ -4,6 +4,7 @@
 
 #include "commands.h"
 #include "../mod.h"
+#include "../config/config.h"
 
 // Parsing Arguments
 static bool parse_two_args(const std::string &command, std::string &a, std::string &b) {
@@ -12,7 +13,9 @@ static bool parse_two_args(const std::string &command, std::string &a, std::stri
         return false;
     }
     a = command.substr(0, divider);
+    trim(a);
     b = command.substr(divider + 1);
+    trim(b);
     return !a.empty() && !b.empty();
 }
 
@@ -79,6 +82,7 @@ static bool run(ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, c
             std::string args_str;
             if (input.size() >= prefix.size()) {
                 args_str = input.substr(prefix.size());
+                trim(args_str);
             }
             // Run
             const std::vector<std::string> output = run_command(args_str, command);

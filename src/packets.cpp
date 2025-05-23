@@ -7,6 +7,7 @@
 #include <mods/chat/chat.h>
 
 #include "mod.h"
+#include "config/config.h"
 
 // Track Logged-In Users
 struct GUID_Helper {
@@ -35,10 +36,10 @@ void mark_logged_in(const RakNet_RakNetGUID &guid) {
 // Limit Packets For Unlogged Users
 static bool is_packet_safe(const Packet *packet) {
     static std::unordered_set allowed = {
-        (void *) LoginPacket_vtable::base,
-        (void *) RequestChunkPacket_vtable::base,
-        (void *) ChatPacket_vtable::base,
-        (void *) ReadyPacket_vtable::base
+        (void *) LoginPacket::VTable::base,
+        (void *) RequestChunkPacket::VTable::base,
+        (void *) ChatPacket::VTable::base,
+        (void *) ReadyPacket::VTable::base
     };
     return allowed.contains((void *) packet->vtable);
 }
@@ -65,7 +66,7 @@ static void ServerSideNetworkHandler_handle_LoginPacket_StartGamePacket_write_in
 void tell(const ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, const std::string &message) {
     MessagePacket *packet = MessagePacket::allocate();
     ((Packet *) packet)->constructor();
-    packet->vtable = MessagePacket_vtable::base;
+    packet->vtable = MessagePacket::VTable::base;
     packet->message.constructor();
     packet->message.Assign(to_cp437(message).c_str());
     packet->reliability = RELIABLE_ORDERED;
@@ -78,9 +79,10 @@ static void ServerSideNetworkHandler_onReady_ClientGeneration_injection(ServerSi
         return;
     }
     // Send Welcome Message
-    tell(self, guid, "Welcome to the official MCPI-Revival server!");
-    tell(self, guid, "To join, chat \"/login <username> <password>\".");
-    tell(self, guid, "If you do not have an account, DM @" + discord_admin + " on Discord.");
+    const std::vector<std::string> &welcome = get_welcome_messages();
+    for (const std::string &line : welcome) {
+        tell(self, guid, line);
+    }
     const int count = self->level ? int(self->level->players.size()) : 0;
     std::string message = "There ";
     if (count == 1) {

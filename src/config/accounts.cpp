@@ -1,15 +1,28 @@
 #include <fstream>
 #include <unordered_map>
 
-#include <libreborn/util/util.h>
-
-#include "mod.h"
+#include "config.h"
+#include "../mod.h"
 
 // Manager
-struct Accounts {
+struct Accounts final : ConfigFile {
     std::unordered_map<std::string, std::string> data;
-    void load();
-    void save() const;
+    // Load/Save
+    void clear() override {
+        data.clear();
+    }
+    void do_load(std::ifstream &) override;
+    bool can_save() const override {
+        return true;
+    }
+    void do_save(std::ofstream &) const override;
+    // Name
+    const char *get_name() const override {
+        return "Accounts";
+    }
+    const char *get_file() const override {
+        return "accounts.txt";
+    }
 };
 static Accounts &get_accounts() {
     static Accounts accounts;
@@ -17,12 +30,7 @@ static Accounts &get_accounts() {
 }
 
 // Load
-static std::string get_path() {
-    return home_get() + "/accounts.txt";
-}
-void Accounts::load() {
-    data.clear();
-    std::ifstream file(get_path(), std::ios::binary);
+void Accounts::do_load(std::ifstream &file) {
     while (true) {
         std::string username;
         if (!std::getline(file, username)) {
@@ -32,16 +40,14 @@ void Accounts::load() {
         std::getline(file, password);
         data[username] = password;
     }
-    file.close();
-    save();
 }
-void Accounts::save() const {
-    std::ofstream file(get_path(), std::ios::binary);
+
+// Save
+void Accounts::do_save(std::ofstream &file) const {
     for (const std::pair<const std::string, std::string> &account : data) {
         file << account.first << std::endl;
         file << account.second << std::endl;
     }
-    file.close();
 }
 
 // Discord Notification

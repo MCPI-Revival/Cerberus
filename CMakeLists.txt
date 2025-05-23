@@ -18,8 +18,11 @@ add_compile_options(-Wall -Wextra -Werror -Wpointer-arith -Wshadow -Wnull-derefe
 # Build
 set(CMAKE_CXX_VISIBILITY_PRESET internal)
 add_library(cerberus SHARED
-    src/accounts.cpp
-    src/admins.cpp
+    src/config/file.cpp
+    src/config/accounts.cpp
+    src/config/admins.cpp
+    src/config/welcome.cpp
+    src/config/webhook.cpp
     src/commands/parsing.cpp
     src/commands/common.cpp
     src/commands/logged-in.cpp
@@ -27,7 +30,6 @@ add_library(cerberus SHARED
     src/init.cpp
     src/login.cpp
     src/packets.cpp
-    src/webhook.cpp
     src/hash.cpp
     sha256/src/SHA256.cpp
 )

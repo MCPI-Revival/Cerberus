@@ -3,6 +3,7 @@
 
 #include "commands.h"
 #include "../mod.h"
+#include "../config/config.h"
 
 // Check Username
 bool is_username_valid(std::string username) {
