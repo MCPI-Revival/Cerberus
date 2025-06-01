@@ -52,7 +52,7 @@ void add_logged_in_commands(std::vector<Command> &commands, ServerSideNetworkHan
             } else if (create_account(username, password)) {
                 message = "Created: " + username;
             } else {
-                message = "Account Already Exists";
+                message = "Unable To Create Account";
             }
             return std::vector{message};
         }

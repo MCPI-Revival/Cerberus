@@ -57,12 +57,18 @@ static void notify(const std::string &type, const std::string &name) {
 
 // Create Account
 bool create_account(const std::string &name, const std::string &password) {
+    // Check
     if (has_account(name)) {
         // Already Exists
         return false;
     }
+    const std::string hash = hash_password(password);
+    if (hash.empty()) {
+        // Invalid Password
+        return false;
+    }
     // Create
-    get_accounts().data[name] = hash_password(password);
+    get_accounts().data[name] = hash;
     get_accounts().save();
     notify("New Account Created", name);
     return true;
@@ -75,7 +81,8 @@ bool attempt_login(const std::string &name, const std::string &password) {
         return false;
     }
     // Check
-    return get_accounts().data.at(name) == hash_password(password);
+    const std::string existing_hash = get_accounts().data.at(name);
+    return hash_check(password, existing_hash);
 }
 
 // Delete
@@ -98,13 +105,18 @@ bool has_account(const std::string &name) {
 
 // Change Password
 bool change_password(const std::string &name, const std::string &old_password, const std::string &new_password) {
-    // Check Old Password
+    // Check Password
     if (!attempt_login(name, old_password)) {
-        // Incorrect Password
+        // Incorrect Old Password
+        return false;
+    }
+    const std::string new_hash = hash_password(new_password);
+    if (new_hash.empty()) {
+        // Invalid New Password
         return false;
     }
     // Change
-    get_accounts().data[name] = hash_password(new_password);
+    get_accounts().data[name] = new_hash;
     get_accounts().save();
     notify("Password Changed", name);
     return true;

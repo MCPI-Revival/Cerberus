@@ -18,7 +18,7 @@ This contains registered accounts.
 
 Each account consists of two lines:
 1. A Username
-2. An SHA-256 Password Hash
+2. A [`bcrypt`](https://en.wikipedia.org/wiki/Bcrypt?useskin=vector) Password Hash
 
 While an administrator can create new accounts in-game,
 the first administrator account will have to be created manually.

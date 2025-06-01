@@ -7,6 +7,7 @@ void init_packets();
 
 // Hashing
 std::string hash_password(const std::string &password);
+bool hash_check(const std::string &password, const std::string &hash);
 
 // Packets
 void tell(const ServerSideNetworkHandler *self, const RakNet_RakNetGUID &guid, const std::string &message /* In UTF-8 */);
