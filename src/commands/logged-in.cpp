@@ -15,6 +15,11 @@ void add_logged_in_commands(std::vector<Command> &commands, ServerSideNetworkHan
             // Arguments
             const std::string &username = args[0];
 
+            // Block Banning Admins
+            if (is_admin(username)) {
+                return std::vector<std::string>{"Unable To Ban Administrator"};
+            }
+
             // Remove Account
             bool valid = delete_account(username);
             // Kick Players
@@ -29,8 +34,10 @@ void add_logged_in_commands(std::vector<Command> &commands, ServerSideNetworkHan
             }
 
             // Return
-            std::string message = valid ? "Banned" : invalid_player;
-            message += ": " + username;
+            std::string message = invalid_player;
+            if (valid) {
+                message = "Banned: " + username;
+            }
             return std::vector{message};
         }
     });

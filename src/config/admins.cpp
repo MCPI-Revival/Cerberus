@@ -42,6 +42,9 @@ void init_admins() {
 }
 
 // Check
+bool is_admin(const std::string &username_utf) {
+    return get_admins().data.contains(username_utf);
+}
 bool is_admin(const Player *player) {
-    return get_admins().data.contains(misc_get_player_username_utf(player));
+    return is_admin(misc_get_player_username_utf(player));
 }

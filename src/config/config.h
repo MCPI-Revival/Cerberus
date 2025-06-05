@@ -14,18 +14,18 @@ struct ConfigFile {
     virtual void load();
 
     // Name
-    virtual const char *get_name() const = 0;
-    virtual const char *get_file() const = 0;
-    std::string get_path() const;
+    [[nodiscard]] virtual const char *get_name() const = 0;
+    [[nodiscard]] virtual const char *get_file() const = 0;
+    [[nodiscard]] std::string get_path() const;
 
     // Data
     virtual void clear() = 0;
 
     // Implementation
-    virtual bool can_save() const = 0;
+    [[nodiscard]] virtual bool can_save() const = 0;
     virtual void do_save(std::ofstream &) const;
     virtual void do_load(std::ifstream &) = 0;
-    virtual bool check_load() const;
+    [[nodiscard]] virtual bool check_load() const;
 };
 
 // Init
@@ -45,6 +45,7 @@ typedef unsigned long long snowflake;
 void send_to_discord(const std::string &message, bool can_ping);
 
 // Admin
+bool is_admin(const std::string &username_utf);
 bool is_admin(const Player *player);
 
 // Welcome Message
